@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Inscricao | Racha Ai</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css?v=20260523-v0">
+  </head>
+  <body>
+    <main class="signup-flow-shell">
+      <a class="icon-back-link" href="/" aria-label="Voltar para a home">‹</a>
+
+      <section class="flow-header">
+        <span class="payment-eyebrow">Inscricao</span>
+        <h1 id="event-title">Racha</h1>
+        <p id="event-meta">Carregando informacoes...</p>
+      </section>
+
+      <section class="stepper-shell" aria-label="Navegacao da inscricao">
+        <button id="step-back-button" class="step-top-back" type="button" aria-label="Voltar etapa">‹</button>
+        <nav class="stepper" aria-label="Etapas da inscricao">
+          <button class="step-item active" type="button" data-step-indicator="1">
+            <span>1</span>
+            <strong>Dados</strong>
+          </button>
+          <button class="step-item" type="button" data-step-indicator="2">
+            <span>2</span>
+            <strong>Telefone</strong>
+          </button>
+        </nav>
+      </section>
+
+      <section class="signup-card flow-card" data-step="1">
+        <h2>SEUS DADOS</h2>
+        <p>Preencha nome, posicao e telefone para acompanhar sua inscricao.</p>
+        <form id="details-form">
+          <label>
+            Nome e sobrenome
+            <input name="name" autocomplete="name" required minlength="3" placeholder="Ex: Maria Souza">
+          </label>
+          <label>
+            Posicao
+            <select name="position" required></select>
+          </label>
+          <fieldset class="rating-field">
+            <legend>Nivel do jogador</legend>
+            <div class="star-rating" data-rating-control>
+              <input id="signup-level-5" type="radio" name="level" value="5" required>
+              <label for="signup-level-5" title="5 estrelas">★</label>
+              <input id="signup-level-4" type="radio" name="level" value="4">
+              <label for="signup-level-4" title="4 estrelas">★</label>
+              <input id="signup-level-3" type="radio" name="level" value="3">
+              <label for="signup-level-3" title="3 estrelas">★</label>
+              <input id="signup-level-2" type="radio" name="level" value="2">
+              <label for="signup-level-2" title="2 estrelas">★</label>
+              <input id="signup-level-1" type="radio" name="level" value="1">
+              <label for="signup-level-1" title="1 estrela">★</label>
+            </div>
+          </fieldset>
+          <label>
+            WhatsApp
+            <input name="phone" autocomplete="tel" required minlength="8" placeholder="(00) 00000-0000">
+          </label>
+          <label>
+            Observacao
+            <textarea name="note" rows="3" placeholder="Ex: chego 10 min atrasado"></textarea>
+          </label>
+          <button type="submit">AVANCAR</button>
+          <p id="details-message" class="form-message" role="status"></p>
+        </form>
+      </section>
+
+      <section class="signup-card flow-card hidden" data-step="2">
+        <h2>CONFIRME SEU TELEFONE</h2>
+        <p>Confira se o numero esta correto. Voce vai usar esse telefone para consultar a situacao da inscricao depois.</p>
+        <form id="phone-confirm-form">
+          <div class="phone-box">
+            <span>Telefone informado</span>
+            <strong id="phone-preview">(00) 00000-0000</strong>
+            <p class="phone-hint">Se estiver errado, use o botao de voltar e corrija antes de continuar.</p>
+          </div>
+          <button type="submit">MEU TELEFONE ESTA CORRETO</button>
+          <p id="phone-message" class="form-message" role="status"></p>
+        </form>
+      </section>
+
+    </main>
+
+    <script src="/signup.js?v=20260523-v0"></script>
+  </body>
+</html>

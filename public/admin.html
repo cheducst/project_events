@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin | Racha Ai</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css?v=20260523-v0">
+  </head>
+  <body>
+    <section class="live-ticker" aria-label="Painel do organizador">
+      <div class="ticker-head">
+        <span class="live-dot"></span>
+        <span>Admin -</span>
+        <strong>ao vivo</strong>
+        <span>controle do racha</span>
+      </div>
+      <div class="ticker-window">
+        <div class="ticker-track">
+          <span class="ticker-card">Confirmar presenca</span>
+          <span class="ticker-card">Marcar pagamento</span>
+          <span class="ticker-card">Excluir da lista</span>
+          <span class="ticker-card">Criar futebol</span>
+          <span class="ticker-card">Criar volei</span>
+          <span class="ticker-card">Confirmar presenca</span>
+          <span class="ticker-card">Marcar pagamento</span>
+          <span class="ticker-card">Excluir da lista</span>
+          <span class="ticker-card">Criar futebol</span>
+          <span class="ticker-card">Criar volei</span>
+        </div>
+      </div>
+    </section>
+
+    <main class="admin-shell">
+      <a class="icon-back-link" href="/" aria-label="Voltar para a home">‹</a>
+      <button id="open-create-button" class="create-square hidden" type="button" aria-label="Novo racha">+</button>
+
+      <section class="signup-card admin-login" id="login-panel">
+        <h1>ACESSO DO ORGANIZADOR</h1>
+        <p>Digite a senha para abrir o painel.</p>
+        <form id="login-form">
+          <label>
+            Senha
+            <input type="password" name="password" placeholder="admin123" required>
+          </label>
+          <button type="submit">ENTRAR</button>
+        </form>
+        <p class="muted">Senha padrao local: admin123. Em producao, troque pela variavel ADMIN_PASSWORD.</p>
+      </section>
+
+      <section id="admin-content" class="hidden admin-panel">
+        <section id="admin-organizer-card" class="overview-user-card admin-organizer-card" aria-label="Dados do organizador">
+          <span>Organizador</span>
+          <strong id="admin-organizer-name">Administrador do racha</strong>
+          <p id="admin-organizer-phone">Telefone nao informado</p>
+          <p id="admin-organizer-events">0 rachas criados</p>
+        </section>
+        <div class="admin-head">
+          <div>
+            <span class="payment-eyebrow">Minhas peladas</span>
+            <h1>RACHAS EM ORGANIZACAO</h1>
+          </div>
+          <button id="refresh-button" type="button">ATUALIZAR</button>
+        </div>
+        <div id="admin-events" class="admin-events"></div>
+      </section>
+
+      <div id="event-create" class="create-modal hidden" role="dialog" aria-modal="true" aria-labelledby="create-title">
+        <section class="signup-card create-card">
+          <button id="close-create-button" class="modal-close" type="button" aria-label="Fechar">x</button>
+          <h1 id="create-title">NOVA PELADA</h1>
+          <p>Preenche os campos e manda o link pro grupo.</p>
+          <form id="event-form">
+            <label>Nome da pelada <input name="title" required placeholder="Pelada da Rua"></label>
+            <label>Nome do organizador <input name="organizerName" required placeholder="Ex: Carlos Eduardo"></label>
+            <label>Telefone do organizador <input name="organizerPhone" autocomplete="tel" placeholder="(00) 00000-0000"></label>
+            <div class="sport-choice" role="group" aria-label="Tipo de racha">
+              <label>
+                <input type="radio" name="sport" value="futebol" checked>
+                <span>FUTEBOL</span>
+              </label>
+              <label>
+                <input type="radio" name="sport" value="volei">
+                <span>VOLEI</span>
+              </label>
+            </div>
+            <div class="form-split">
+              <label>Data <input name="date" type="date" required></label>
+              <label>Hora <input name="time" type="time" required></label>
+            </div>
+            <label>Jogadores <input name="capacity" type="number" min="1" value="12" required></label>
+            <label>Local <input name="location" required placeholder="Ex: Society Arena Moema"></label>
+            <label>Valor por jogador (R$) <input name="price" type="number" min="0" step="0.01" value="0"></label>
+            <label>Sua chave Pix (pra receber) <input name="pixKey" required value="edcdesigner@hotmail.com" placeholder="seupix@email.com"></label>
+            <label>Observacoes <textarea name="notes" rows="3" placeholder="Ex: Leva camisa clara e escura."></textarea></label>
+            <label class="check-row">
+              <input name="requireProof" type="checkbox" checked>
+              <span>Exigir comprovante Pix antes de confirmar vaga?</span>
+            </label>
+            <button type="submit">CRIAR PELADA</button>
+            <p id="event-message" class="form-message" role="status"></p>
+          </form>
+        </section>
+      </div>
+
+      <div id="proof-modal" class="proof-modal hidden" role="dialog" aria-modal="true" aria-labelledby="proof-title">
+        <section class="proof-modal-card">
+          <button id="close-proof-button" class="modal-close" type="button" aria-label="Fechar">x</button>
+          <span class="payment-eyebrow">Comprovante</span>
+          <h2 id="proof-title">Arquivo enviado</h2>
+          <div id="proof-modal-body" class="proof-modal-body"></div>
+        </section>
+      </div>
+
+      <div id="player-edit-modal" class="proof-modal hidden" role="dialog" aria-modal="true" aria-labelledby="player-edit-title">
+        <section class="proof-modal-card">
+          <button id="close-player-edit-button" class="modal-close" type="button" aria-label="Fechar">x</button>
+          <span class="payment-eyebrow">Editar jogador</span>
+          <h2 id="player-edit-title">Dados da inscricao</h2>
+          <form id="player-edit-form">
+            <label>Jogador <input name="name" required></label>
+            <label>Telefone <input name="phone" autocomplete="tel" required></label>
+            <label>Posicao <input name="position" required></label>
+            <fieldset class="rating-field">
+              <legend>Nivel do jogador</legend>
+              <div class="star-rating" data-rating-control>
+                <input id="edit-level-5" type="radio" name="level" value="5" required>
+                <label for="edit-level-5" title="5 estrelas">★</label>
+                <input id="edit-level-4" type="radio" name="level" value="4">
+                <label for="edit-level-4" title="4 estrelas">★</label>
+                <input id="edit-level-3" type="radio" name="level" value="3">
+                <label for="edit-level-3" title="3 estrelas">★</label>
+                <input id="edit-level-2" type="radio" name="level" value="2">
+                <label for="edit-level-2" title="2 estrelas">★</label>
+                <input id="edit-level-1" type="radio" name="level" value="1">
+                <label for="edit-level-1" title="1 estrela">★</label>
+              </div>
+            </fieldset>
+            <label class="check-row status-toggle-row">
+              <input name="confirmed" type="checkbox">
+              <span>Jogador confirmado na lista final</span>
+            </label>
+            <div class="modal-actions">
+              <button type="submit">OK</button>
+              <button id="cancel-player-edit-button" class="secondary-button" type="button">CANCELAR</button>
+            </div>
+            <p id="player-edit-message" class="form-message" role="status"></p>
+          </form>
+        </section>
+      </div>
+
+      <div id="player-add-modal" class="proof-modal hidden" role="dialog" aria-modal="true" aria-labelledby="player-add-title">
+        <section class="proof-modal-card">
+          <button id="close-player-add-button" class="modal-close" type="button" aria-label="Fechar">x</button>
+          <span class="payment-eyebrow">Adicionar jogador</span>
+          <h2 id="player-add-title">Novo inscrito</h2>
+          <form id="player-add-form">
+            <label>Jogador <input name="name" required placeholder="Nome Sobrenome"></label>
+            <label>Telefone <input name="phone" autocomplete="tel" required placeholder="(00) 00000-0000"></label>
+            <label>Posicao <select name="position" required></select></label>
+            <fieldset class="rating-field">
+              <legend>Nivel do jogador</legend>
+              <div class="star-rating" data-rating-control>
+                <input id="add-level-5" type="radio" name="level" value="5" required>
+                <label for="add-level-5" title="5 estrelas">★</label>
+                <input id="add-level-4" type="radio" name="level" value="4">
+                <label for="add-level-4" title="4 estrelas">★</label>
+                <input id="add-level-3" type="radio" name="level" value="3">
+                <label for="add-level-3" title="3 estrelas">★</label>
+                <input id="add-level-2" type="radio" name="level" value="2">
+                <label for="add-level-2" title="2 estrelas">★</label>
+                <input id="add-level-1" type="radio" name="level" value="1">
+                <label for="add-level-1" title="1 estrela">★</label>
+              </div>
+            </fieldset>
+            <label class="check-row status-toggle-row">
+              <input name="confirmed" type="checkbox">
+              <span>Adicionar ja confirmado</span>
+            </label>
+            <div class="modal-actions">
+              <button type="submit">OK</button>
+              <button id="cancel-player-add-button" class="secondary-button" type="button">CANCELAR</button>
+            </div>
+            <p id="player-add-message" class="form-message" role="status"></p>
+          </form>
+        </section>
+      </div>
+
+      <div id="team-draw-modal" class="proof-modal hidden" role="dialog" aria-modal="true" aria-labelledby="team-draw-title">
+        <section class="proof-modal-card team-draw-card">
+          <button id="close-team-draw-button" class="modal-close" type="button" aria-label="Fechar">x</button>
+          <span class="payment-eyebrow">Sortear times</span>
+          <h2 id="team-draw-title">Divisao dos confirmados</h2>
+          <form id="team-draw-form" class="team-draw-form">
+            <label>Jogadores por time <input name="teamSize" type="number" min="1" value="5" required></label>
+            <button type="submit">SORTEAR</button>
+          </form>
+          <div id="team-draw-result" class="team-draw-result"></div>
+        </section>
+      </div>
+    </main>
+
+    <script src="/admin.js?v=20260523-v0"></script>
+  </body>
+</html>

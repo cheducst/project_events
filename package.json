@@ -1,0 +1,20 @@
+{
+  "name": "organizador-rachas",
+  "version": "1.0.0",
+  "description": "Aplicativo web para organizar rachas de futebol society e volei.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "racha",
+    "futebol",
+    "volei",
+    "admin"
+  ],
+  "author": "",
+  "license": "MIT"
+}

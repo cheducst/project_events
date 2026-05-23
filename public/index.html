@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Racha Ai - Organize e participe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css?v=20260523-v0">
+  </head>
+  <body>
+    <main class="home-shell site-home">
+      <header class="home-nav">
+        <a class="home-logo" href="/">
+          <span>Racha</span>
+          <strong>Ai.</strong>
+        </a>
+        <a class="admin-link home-admin-link" href="/admin.html">Admin</a>
+      </header>
+
+      <section class="home-hero">
+        <span class="payment-eyebrow">Futebol e volei sem bagunca</span>
+        <h1>Crie seu racha e mande o link pro grupo.</h1>
+        <p>Organize vagas, posicoes, Pix, comprovantes e confirmacoes em um fluxo simples para quem joga e para quem organiza.</p>
+        <div class="home-hero-actions">
+          <a class="primary-home-cta" href="/organizar.html">CRIAR RACHA</a>
+          <a class="secondary-home-cta" href="#rachas-abertos">VER RACHAS ABERTOS</a>
+        </div>
+      </section>
+
+      <section id="rachas-abertos" class="events-section home-events">
+        <div class="section-row">
+          <div>
+            <span class="payment-eyebrow">Em aberto</span>
+            <h1>RACHAS DISPONIVEIS</h1>
+          </div>
+        </div>
+        <div id="events" class="event-grid"></div>
+      </section>
+
+      <section class="lookup-card home-lookup-last">
+        <div>
+          <span class="payment-eyebrow">Ja se inscreveu?</span>
+          <h2>SITUACAO DA INSCRICAO</h2>
+          <p>Acesse suas inscricoes usando o numero de celular.</p>
+        </div>
+        <form id="lookup-form">
+          <label>
+            WhatsApp
+            <input name="phone" autocomplete="tel" required minlength="8" placeholder="(00) 00000-0000">
+          </label>
+          <button type="submit" class="small-action">VER MINHA INSCRICAO</button>
+          <p id="lookup-message" class="form-message" role="status"></p>
+        </form>
+      </section>
+    </main>
+
+    <script src="/app.js?v=20260523-v0"></script>
+  </body>
+</html>

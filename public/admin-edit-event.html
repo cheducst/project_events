@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Editar racha | Racha Ai</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css?v=20260523-v0">
+  </head>
+  <body>
+    <main class="signup-flow-shell">
+      <a class="icon-back-link" href="/admin.html" aria-label="Voltar para o admin">‹</a>
+
+      <section class="flow-header">
+        <span class="payment-eyebrow">Admin</span>
+        <h1>EDITAR RACHA</h1>
+        <p>Altere as informacoes preenchidas na criacao.</p>
+      </section>
+
+      <section class="signup-card flow-card">
+        <form id="edit-event-form">
+          <label>Nome da pelada <input name="title" required></label>
+          <label>Nome do organizador <input name="organizerName" required></label>
+          <label>Telefone do organizador <input name="organizerPhone" autocomplete="tel"></label>
+          <div class="sport-choice" role="group" aria-label="Tipo de racha">
+            <label>
+              <input type="radio" name="sport" value="futebol">
+              <span>FUTEBOL</span>
+            </label>
+            <label>
+              <input type="radio" name="sport" value="volei">
+              <span>VOLEI</span>
+            </label>
+          </div>
+          <div class="form-split">
+            <label>Data <input name="date" type="date" required></label>
+            <label>Hora <input name="time" type="time" required></label>
+          </div>
+          <label>Jogadores <input name="capacity" type="number" min="1" required></label>
+          <label>Local <input name="location" required></label>
+          <label>Valor por jogador (R$) <input name="price" type="number" min="0" step="0.01"></label>
+          <label>Sua chave Pix (pra receber) <input name="pixKey" required></label>
+          <label>Observacoes <textarea name="notes" rows="3"></textarea></label>
+          <label class="check-row">
+            <input name="requireProof" type="checkbox">
+            <span>Exigir comprovante Pix antes de confirmar vaga?</span>
+          </label>
+          <button type="submit">SALVAR ALTERACOES</button>
+          <p id="edit-event-message" class="form-message" role="status"></p>
+        </form>
+      </section>
+    </main>
+
+    <script src="/admin-edit-event.js?v=20260523-v0"></script>
+  </body>
+</html>

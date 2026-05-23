@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Situacao da inscricao | Racha Ai</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css?v=20260523-v0">
+  </head>
+  <body>
+    <main class="signup-flow-shell overview-shell">
+      <a class="icon-back-link" href="/" aria-label="Voltar para a home">‹</a>
+
+      <section class="flow-header">
+        <span class="payment-eyebrow">Situacao da inscricao</span>
+        <h1>SEUS RACHAS</h1>
+        <p>Confira o status da sua vaga e acompanhe os confirmados.</p>
+      </section>
+
+      <section id="overview-user-card" class="overview-user-card hidden" aria-label="Dados do usuario">
+        <span>Jogador</span>
+        <strong id="overview-user-name">Nome Sobrenome</strong>
+        <p id="overview-user-phone">telefone</p>
+        <p id="overview-user-meta">nivel e posicao</p>
+        <button id="overview-edit-button" class="secondary-button" type="button">EDITAR MEUS DADOS</button>
+      </section>
+
+      <h2 id="overview-events-title" class="overview-events-title hidden">Eventos Inscritos:</h2>
+      <section id="overview-list" class="overview-list"></section>
+      <p id="overview-message" class="form-message" role="status"></p>
+
+      <div id="overview-edit-modal" class="proof-modal hidden" role="dialog" aria-modal="true" aria-labelledby="overview-edit-title">
+        <section class="proof-modal-card">
+          <button id="close-overview-edit-button" class="modal-close" type="button" aria-label="Fechar">x</button>
+          <span class="payment-eyebrow">Editar jogador</span>
+          <h2 id="overview-edit-title">Seus dados</h2>
+          <form id="overview-edit-form">
+            <label>Nome e sobrenome <input name="name" required minlength="3"></label>
+            <label>Telefone <input name="phone" autocomplete="tel" required minlength="8"></label>
+            <label>Posicao <select name="position" required></select></label>
+            <fieldset class="rating-field">
+              <legend>Nivel do jogador</legend>
+              <div class="star-rating" data-rating-control>
+                <input id="overview-level-5" type="radio" name="level" value="5" required>
+                <label for="overview-level-5" title="5 estrelas">★</label>
+                <input id="overview-level-4" type="radio" name="level" value="4">
+                <label for="overview-level-4" title="4 estrelas">★</label>
+                <input id="overview-level-3" type="radio" name="level" value="3">
+                <label for="overview-level-3" title="3 estrelas">★</label>
+                <input id="overview-level-2" type="radio" name="level" value="2">
+                <label for="overview-level-2" title="2 estrelas">★</label>
+                <input id="overview-level-1" type="radio" name="level" value="1">
+                <label for="overview-level-1" title="1 estrela">★</label>
+              </div>
+            </fieldset>
+            <label>Observacao <textarea name="note" rows="3"></textarea></label>
+            <div class="modal-actions">
+              <button type="submit">OK</button>
+              <button id="cancel-overview-edit-button" class="secondary-button" type="button">CANCELAR</button>
+            </div>
+            <p id="overview-edit-message" class="form-message" role="status"></p>
+          </form>
+        </section>
+      </div>
+    </main>
+
+    <script src="/overview.js?v=20260523-v0"></script>
+  </body>
+</html>
