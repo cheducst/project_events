@@ -14,6 +14,8 @@ const DEFAULT_PIX_KEY = "edcdesigner@hotmail.com";
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const SUPABASE_STATE_TABLE = process.env.SUPABASE_STATE_TABLE || "app_state";
+const SESSION_MAX_AGE_SECONDS = 8 * 60 * 60;
+const PASSWORD_HASH_ITERATIONS = 120000;
 
 const positionsBySport = {
   futebol: ["Goleiro", "Zagueiro", "Lateral", "Meia", "Atacante", "Coringa"],
@@ -63,7 +65,10 @@ const initialDb = {
       notes: "Confirmar ate sexta-feira a noite."
     }
   ],
-  players: []
+  players: [],
+  organizers: [],
+  organizerSessions: [],
+  organizerLoginAttempts: []
 };
 
 function usingSupabase() {
@@ -74,7 +79,10 @@ function normalizeDb(db) {
   let changed = false;
   const nextDb = {
     events: Array.isArray(db?.events) ? db.events : [],
-    players: Array.isArray(db?.players) ? db.players : []
+    players: Array.isArray(db?.players) ? db.players : [],
+    organizers: Array.isArray(db?.organizers) ? db.organizers : [],
+    organizerSessions: Array.isArray(db?.organizerSessions) ? db.organizerSessions : [],
+    organizerLoginAttempts: Array.isArray(db?.organizerLoginAttempts) ? db.organizerLoginAttempts : []
   };
 
   nextDb.events = nextDb.events.map((event) => {
@@ -184,9 +192,119 @@ async function writeDb(db) {
   await fs.writeFile(DB_FILE, `${JSON.stringify(normalizeDb(db).db, null, 2)}\n`, "utf8");
 }
 
-function sendJson(res, status, payload) {
-  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+function sendJson(res, status, payload, headers = {}) {
+  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", ...headers });
   res.end(JSON.stringify(payload));
+}
+
+function sanitizeText(value, maxLength = 180) {
+  return String(value || "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, maxLength);
+}
+
+function parseCookies(req) {
+  return Object.fromEntries(
+    String(req.headers.cookie || "")
+      .split(";")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => {
+        const index = item.indexOf("=");
+        if (index === -1) return [item, ""];
+        return [decodeURIComponent(item.slice(0, index)), decodeURIComponent(item.slice(index + 1))];
+      })
+  );
+}
+
+function sessionCookie(token, req) {
+  const secure = req.headers["x-forwarded-proto"] === "https" || req.headers.host?.includes("onrender.com");
+  return [
+    `organizer_session=${encodeURIComponent(token)}`,
+    "HttpOnly",
+    "SameSite=Lax",
+    "Path=/",
+    `Max-Age=${SESSION_MAX_AGE_SECONDS}`,
+    secure ? "Secure" : ""
+  ].filter(Boolean).join("; ");
+}
+
+function expiredSessionCookie() {
+  return "organizer_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0";
+}
+
+function tokenHash(token) {
+  return crypto.createHash("sha256").update(String(token)).digest("hex");
+}
+
+function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")) {
+  const hash = crypto.pbkdf2Sync(String(password), salt, PASSWORD_HASH_ITERATIONS, 32, "sha256").toString("hex");
+  return { salt, hash };
+}
+
+function verifyPassword(password, organizer) {
+  if (!organizer?.passwordHash || !organizer?.passwordSalt) return false;
+  const { hash } = hashPassword(password, organizer.passwordSalt);
+  return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(organizer.passwordHash, "hex"));
+}
+
+function validateOrganizerPassword(password, organizerName, organizerPhone, eventTitle) {
+  const value = String(password || "");
+  if (value.length < 8) return "A senha precisa ter pelo menos 8 caracteres.";
+  if (!/[A-Z]/.test(value)) return "A senha precisa ter pelo menos 1 letra maiuscula.";
+  if (!/[a-z]/.test(value)) return "A senha precisa ter pelo menos 1 letra minuscula.";
+  if (!/\d/.test(value)) return "A senha precisa ter pelo menos 1 numero.";
+  if (!/[^A-Za-z0-9]/.test(value)) return "A senha precisa ter pelo menos 1 caractere especial.";
+
+  const lowered = value.toLowerCase();
+  const phone = cleanPhone(organizerPhone);
+  const blocked = [organizerName, eventTitle]
+    .map((item) => sanitizeText(item).toLowerCase())
+    .filter((item) => item.length >= 3);
+
+  if (phone && cleanPhone(value) === phone) return "A senha nao pode ser igual ao telefone.";
+  if (blocked.some((item) => lowered.includes(item))) return "A senha nao pode conter o nome do organizador ou do evento.";
+  return null;
+}
+
+function createOrganizerSession(db, organizer, req) {
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000).toISOString();
+  db.organizerSessions = (db.organizerSessions || []).filter((session) => new Date(session.expiresAt).getTime() > Date.now());
+  db.organizerSessions.push({
+    id: crypto.randomUUID(),
+    tokenHash: tokenHash(token),
+    organizerId: organizer.id,
+    eventId: organizer.eventId,
+    createdAt: new Date().toISOString(),
+    expiresAt
+  });
+  return { token, cookie: sessionCookie(token, req) };
+}
+
+function organizerFromRequest(req, db) {
+  const cookies = parseCookies(req);
+  const token = cookies.organizer_session;
+  if (!token) return null;
+
+  const hash = tokenHash(token);
+  const session = (db.organizerSessions || []).find((item) => item.tokenHash === hash && new Date(item.expiresAt).getTime() > Date.now());
+  if (!session) return null;
+
+  const organizer = (db.organizers || []).find((item) => item.id === session.organizerId);
+  if (!organizer) return null;
+  return { organizer, session };
+}
+
+function requireOrganizer(req, res, db, eventId = "") {
+  const auth = organizerFromRequest(req, db);
+  if (!auth) {
+    sendJson(res, 401, { error: "Telefone ou senha invalidos" });
+    return null;
+  }
+  if (eventId && auth.organizer.eventId !== eventId) {
+    sendJson(res, 403, { error: "Acesso negado." });
+    return null;
+  }
+  return auth;
 }
 
 function parseBody(req) {
@@ -379,16 +497,16 @@ async function saveProofFile(playerId, proofName, proofData) {
 }
 
 function eventPayloadFrom(payload, existingEvent = {}) {
-  const title = String(payload.title ?? existingEvent.title ?? "").trim();
-  const sport = String(payload.sport ?? existingEvent.sport ?? "").trim();
-  const date = String(payload.date ?? existingEvent.date ?? "").trim();
-  const time = String(payload.time ?? existingEvent.time ?? "").trim();
-  const location = String(payload.location ?? existingEvent.location ?? "").trim();
+  const title = sanitizeText(payload.title ?? existingEvent.title ?? "");
+  const sport = sanitizeText(payload.sport ?? existingEvent.sport ?? "");
+  const date = sanitizeText(payload.date ?? existingEvent.date ?? "", 20);
+  const time = sanitizeText(payload.time ?? existingEvent.time ?? "", 20);
+  const location = sanitizeText(payload.location ?? existingEvent.location ?? "");
   const capacity = Number(payload.capacity ?? existingEvent.capacity);
   const price = Number(payload.price ?? existingEvent.price);
-  const pixKey = String(payload.pixKey ?? existingEvent.pixKey ?? DEFAULT_PIX_KEY).trim();
-  const organizerName = String(payload.organizerName ?? existingEvent.organizerName ?? "Administrador do racha").trim();
-  const organizerPhone = String(payload.organizerPhone ?? existingEvent.organizerPhone ?? "").trim();
+  const pixKey = sanitizeText(payload.pixKey ?? existingEvent.pixKey ?? DEFAULT_PIX_KEY, 220);
+  const organizerName = sanitizeText(payload.organizerName ?? existingEvent.organizerName ?? "Administrador do racha");
+  const organizerPhone = sanitizeText(payload.organizerPhone ?? existingEvent.organizerPhone ?? "", 40);
   const requireProof = typeof payload.requireProof === "boolean" ? payload.requireProof : Boolean(existingEvent.requireProof);
 
   return {
@@ -403,7 +521,7 @@ function eventPayloadFrom(payload, existingEvent = {}) {
     organizerName,
     organizerPhone,
     requireProof,
-    notes: String(payload.notes ?? existingEvent.notes ?? "").trim()
+    notes: sanitizeText(payload.notes ?? existingEvent.notes ?? "", 800)
   };
 }
 
@@ -414,6 +532,7 @@ function validateEventPayload(event) {
   if (!["futebol", "volei"].includes(event.sport)) return "Escolha futebol ou volei.";
   if (!event.pixKey) return "Informe a chave Pix do administrador.";
   if (!event.organizerName) return "Informe o nome do organizador.";
+  if (event.organizerPhone && cleanPhone(event.organizerPhone).length < 8) return "Informe um telefone valido para o organizador.";
   if (event.capacity < 1) return "Informe pelo menos uma vaga.";
   return null;
 }
@@ -458,6 +577,13 @@ async function handleApi(req, res, pathname) {
     const eventData = eventPayloadFrom({ ...payload, requireProof: Boolean(payload.requireProof) });
     const validationError = validateEventPayload(eventData);
     if (validationError) return sendJson(res, 400, { error: validationError });
+    if (!eventData.organizerName) return sendJson(res, 400, { error: "Informe o nome do organizador." });
+    if (cleanPhone(eventData.organizerPhone).length < 8) return sendJson(res, 400, { error: "Informe o telefone do organizador." });
+    if (!payload.password || !payload.confirmPassword) return sendJson(res, 400, { error: "Defina e confirme a senha do organizador." });
+    if (String(payload.password) !== String(payload.confirmPassword)) return sendJson(res, 400, { error: "Senha e confirmacao precisam ser iguais." });
+
+    const passwordError = validateOrganizerPassword(payload.password, eventData.organizerName, eventData.organizerPhone, eventData.title);
+    if (passwordError) return sendJson(res, 400, { error: passwordError });
 
     const event = {
       id: `${eventData.title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${Date.now()}`,
@@ -465,9 +591,26 @@ async function handleApi(req, res, pathname) {
       createdAt: new Date().toISOString()
     };
 
+    const passwordHash = hashPassword(payload.password);
+    const organizer = {
+      id: crypto.randomUUID(),
+      eventId: event.id,
+      name: eventData.organizerName,
+      phone: cleanPhone(eventData.organizerPhone),
+      passwordHash: passwordHash.hash,
+      passwordSalt: passwordHash.salt,
+      createdAt: new Date().toISOString()
+    };
+
     db.events.push(event);
+    db.organizers.push(organizer);
+    const session = createOrganizerSession(db, organizer, req);
     await writeDb(db);
-    return sendJson(res, 201, { event });
+    return sendJson(res, 201, {
+      event,
+      organizer: { id: organizer.id, eventId: organizer.eventId, name: organizer.name, phone: organizer.phone },
+      organizerPanelUrl: `/painel-organizador.html?eventId=${encodeURIComponent(event.id)}`
+    }, { "Set-Cookie": session.cookie });
   }
 
   if (req.method === "GET" && pathname.startsWith("/api/events/")) {
@@ -625,6 +768,205 @@ async function handleApi(req, res, pathname) {
     player.status = "pendente";
     await writeDb(db);
     return sendJson(res, 200, { player });
+  }
+
+  if (req.method === "GET" && pathname === "/api/organizer/access-check") {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const phone = cleanPhone(url.searchParams.get("phone"));
+    if (phone.length < 8) return sendJson(res, 400, { error: "Informe um telefone valido." });
+
+    const isPlayer = db.players.some((player) => cleanPhone(player.phone) === phone && player.status !== "excluido");
+    const organizerEvents = (db.organizers || [])
+      .filter((organizer) => cleanPhone(organizer.phone) === phone)
+      .map((organizer) => {
+        const event = db.events.find((item) => item.id === organizer.eventId);
+        return event ? { eventId: event.id, title: event.title } : null;
+      })
+      .filter(Boolean);
+
+    return sendJson(res, 200, {
+      isPlayer,
+      isOrganizer: organizerEvents.length > 0,
+      organizerEvents
+    });
+  }
+
+  if (req.method === "POST" && pathname === "/api/organizer/login") {
+    const payload = await parseBody(req);
+    const phone = cleanPhone(payload.phone);
+    const eventId = sanitizeText(payload.eventId || "", 220);
+    const password = String(payload.password || "");
+    if (phone.length < 8 || !password) return sendJson(res, 401, { error: "Telefone ou senha invalidos" });
+
+    const now = Date.now();
+    db.organizerLoginAttempts = (db.organizerLoginAttempts || []).filter((attempt) => now - new Date(attempt.lastAttemptAt || 0).getTime() < 15 * 60 * 1000);
+    const attemptKey = `${phone}:${eventId || "any"}`;
+    const attempt = db.organizerLoginAttempts.find((item) => item.key === attemptKey) || { key: attemptKey, count: 0, lastAttemptAt: new Date(0).toISOString() };
+    if (attempt.count >= 6 && now - new Date(attempt.lastAttemptAt).getTime() < 15 * 60 * 1000) {
+      return sendJson(res, 429, { error: "Muitas tentativas. Tente novamente em alguns minutos." });
+    }
+
+    const candidates = (db.organizers || []).filter((organizer) => cleanPhone(organizer.phone) === phone && (!eventId || organizer.eventId === eventId));
+    const organizer = candidates.find((candidate) => verifyPassword(password, candidate));
+
+    if (!organizer) {
+      attempt.count += 1;
+      attempt.lastAttemptAt = new Date().toISOString();
+      if (!db.organizerLoginAttempts.includes(attempt)) db.organizerLoginAttempts.push(attempt);
+      await writeDb(db);
+      return sendJson(res, 401, { error: "Telefone ou senha invalidos" });
+    }
+
+    db.organizerLoginAttempts = db.organizerLoginAttempts.filter((item) => item.key !== attemptKey);
+    const session = createOrganizerSession(db, organizer, req);
+    await writeDb(db);
+    return sendJson(res, 200, {
+      ok: true,
+      organizer: { id: organizer.id, eventId: organizer.eventId, name: organizer.name, phone: organizer.phone },
+      organizerPanelUrl: `/painel-organizador.html?eventId=${encodeURIComponent(organizer.eventId)}`
+    }, { "Set-Cookie": session.cookie });
+  }
+
+  if (req.method === "POST" && pathname === "/api/organizer/logout") {
+    const cookies = parseCookies(req);
+    const hash = cookies.organizer_session ? tokenHash(cookies.organizer_session) : "";
+    db.organizerSessions = (db.organizerSessions || []).filter((session) => session.tokenHash !== hash);
+    await writeDb(db);
+    return sendJson(res, 200, { ok: true }, { "Set-Cookie": expiredSessionCookie() });
+  }
+
+  if (pathname === "/api/organizer/me" && req.method === "GET") {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const eventId = decodeURIComponent(url.searchParams.get("eventId") || "");
+    const auth = requireOrganizer(req, res, db, eventId);
+    if (!auth) return;
+    const event = db.events.find((item) => item.id === auth.organizer.eventId);
+    if (!event) return sendJson(res, 404, { error: "Racha nao encontrado." });
+
+    return sendJson(res, 200, {
+      organizer: { id: auth.organizer.id, eventId: auth.organizer.eventId, name: auth.organizer.name, phone: auth.organizer.phone },
+      event: {
+        ...publicEvent(event, db.players),
+        players: db.players
+          .filter((player) => player.eventId === event.id && player.status !== "excluido")
+          .map((player) => ({ ...player, level: normalizeLevel(player.level) }))
+      }
+    });
+  }
+
+  if (pathname.startsWith("/api/organizer/events/")) {
+    const eventId = decodeURIComponent(pathname.split("/")[4] || "");
+    const auth = requireOrganizer(req, res, db, eventId);
+    if (!auth) return;
+    const event = db.events.find((item) => item.id === eventId);
+    if (!event) return sendJson(res, 404, { error: "Racha nao encontrado." });
+
+    if (req.method === "PATCH") {
+      const payload = await parseBody(req);
+      const updatedEvent = eventPayloadFrom(payload, event);
+      const validationError = validateEventPayload(updatedEvent);
+      if (validationError) return sendJson(res, 400, { error: validationError });
+      const nextTeams = Array.isArray(payload.teams) ? payload.teams : event.teams;
+      Object.assign(event, updatedEvent);
+      if (Array.isArray(nextTeams)) {
+        event.teams = nextTeams.map((team, index) => ({
+          name: sanitizeText(team.name || `Time ${index + 1}`, 80),
+          players: Array.isArray(team.players) ? team.players.map((id) => String(id)) : []
+        }));
+      }
+      await writeDb(db);
+      return sendJson(res, 200, { event });
+    }
+
+    if (req.method === "DELETE") {
+      db.events = db.events.filter((item) => item.id !== eventId);
+      db.players = db.players.filter((player) => player.eventId !== eventId);
+      db.organizers = (db.organizers || []).filter((organizer) => organizer.eventId !== eventId);
+      db.organizerSessions = (db.organizerSessions || []).filter((session) => session.eventId !== eventId);
+      await writeDb(db);
+      return sendJson(res, 200, { ok: true }, { "Set-Cookie": expiredSessionCookie() });
+    }
+  }
+
+  if (req.method === "POST" && pathname === "/api/organizer/players") {
+    const payload = await parseBody(req);
+    const event = db.events.find((item) => item.id === payload.eventId);
+    if (!event) return sendJson(res, 404, { error: "Racha nao encontrado." });
+    const auth = requireOrganizer(req, res, db, event.id);
+    if (!auth) return;
+    const validationError = validatePlayer(payload, event);
+    if (validationError) return sendJson(res, 400, { error: validationError });
+
+    const phoneDigits = cleanPhone(payload.phone);
+    const duplicate = db.players.find((item) => item.status !== "excluido" && cleanPhone(item.phone) === phoneDigits);
+    if (duplicate) return sendJson(res, 409, { error: "Este telefone ja possui uma inscricao." });
+
+    const confirmedByOrganizer = Boolean(payload.confirmed);
+    const player = {
+      id: crypto.randomUUID(),
+      eventId: event.id,
+      name: sanitizeText(payload.name),
+      phone: sanitizeText(payload.phone, 40),
+      position: sanitizeText(payload.position, 80),
+      level: normalizeLevel(payload.level),
+      note: sanitizeText(payload.note || "", 400),
+      status: confirmedByOrganizer ? "confirmado" : "aguardando_pagamento",
+      paid: confirmedByOrganizer,
+      proofName: "",
+      proofData: "",
+      proofMime: "",
+      proofSentAt: "",
+      phoneConfirmed: true,
+      paidIntentAt: confirmedByOrganizer ? new Date(0).toISOString() : "",
+      createdAt: new Date().toISOString()
+    };
+
+    db.players.push(player);
+    recomputeEventConfirmations(db, event);
+    await writeDb(db);
+    return sendJson(res, 201, { player });
+  }
+
+  if (pathname.startsWith("/api/organizer/players/")) {
+    const playerId = decodeURIComponent(pathname.split("/")[4] || "");
+    const player = db.players.find((item) => item.id === playerId);
+    if (!player) return sendJson(res, 404, { error: "Jogador nao encontrado." });
+    const auth = requireOrganizer(req, res, db, player.eventId);
+    if (!auth) return;
+
+    if (req.method === "PATCH") {
+      const payload = await parseBody(req);
+      if (typeof payload.name === "string") player.name = sanitizeText(payload.name);
+      if (typeof payload.phone === "string") player.phone = sanitizeText(payload.phone, 40);
+      if (typeof payload.position === "string") player.position = sanitizeText(payload.position, 80);
+      if (payload.level !== undefined) player.level = normalizeLevel(payload.level);
+      if (typeof payload.note === "string") player.note = sanitizeText(payload.note, 400);
+      if (typeof payload.confirmed === "boolean") {
+        if (payload.confirmed) {
+          player.paid = true;
+          player.status = "confirmado";
+          player.paidIntentAt = new Date(0).toISOString();
+        } else {
+          player.paid = false;
+          player.status = player.proofName ? "pendente" : "aguardando_pagamento";
+          player.paidIntentAt = "";
+        }
+      }
+      if (typeof payload.paid === "boolean") {
+        player.paid = payload.paid;
+        if (payload.paid) player.paidIntentAt = player.paidIntentAt || new Date().toISOString();
+      }
+      const event = db.events.find((item) => item.id === player.eventId);
+      recomputeEventConfirmations(db, event);
+      await writeDb(db);
+      return sendJson(res, 200, { player });
+    }
+
+    if (req.method === "DELETE") {
+      db.players = db.players.filter((item) => item.id !== playerId);
+      await writeDb(db);
+      return sendJson(res, 200, { ok: true });
+    }
   }
 
   if (pathname.startsWith("/api/admin") && !isAdmin(req)) {
