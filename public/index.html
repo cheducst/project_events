@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css?v=20260523-v0">
+  <link rel="stylesheet" href="/styles.css?v=20260523-drawsizev0">
   </head>
   <body>
     <main class="home-shell site-home">
@@ -56,6 +56,34 @@
       </section>
     </main>
 
-    <script src="/app.js?v=20260523-v0"></script>
+    <div id="organizer-login-modal" class="proof-modal hidden" role="dialog" aria-modal="true" aria-labelledby="organizer-login-title">
+      <section class="proof-modal-card">
+        <button id="close-organizer-login" class="modal-close" type="button" aria-label="Fechar">x</button>
+        <span class="payment-eyebrow">Organizador</span>
+        <h2 id="organizer-login-title">ACESSAR PAINEL</h2>
+        <p class="muted">Informe sua senha para abrir o painel administrativo do racha.</p>
+        <form id="organizer-login-form">
+          <input type="hidden" name="phone">
+          <label>Racha <select name="eventId" required></select></label>
+          <label>Senha <input name="password" type="password" autocomplete="current-password" required></label>
+          <button type="submit">ENTRAR</button>
+          <p id="organizer-login-message" class="form-message" role="status"></p>
+        </form>
+      </section>
+    </div>
+
+    <div id="profile-choice-modal" class="proof-modal hidden" role="dialog" aria-modal="true" aria-labelledby="profile-choice-title">
+      <section class="proof-modal-card">
+        <button id="close-profile-choice" class="modal-close" type="button" aria-label="Fechar">x</button>
+        <span class="payment-eyebrow">Escolha o acesso</span>
+        <h2 id="profile-choice-title">O QUE VOCE QUER VER?</h2>
+        <div class="modal-actions">
+          <button id="choice-player-button" type="button">VER INSCRICAO</button>
+          <button id="choice-admin-button" class="secondary-button" type="button">PAINEL ADMIN</button>
+        </div>
+      </section>
+    </div>
+
+  <script src="/app.js?v=20260523-drawsizev0"></script>
   </body>
 </html>

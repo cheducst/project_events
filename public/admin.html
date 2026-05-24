@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css?v=20260523-v0">
+  <link rel="stylesheet" href="/styles.css?v=20260523-drawsizev0">
   </head>
   <body>
     <section class="live-ticker" aria-label="Painel do organizador">
@@ -73,8 +73,8 @@
           <h1 id="create-title">NOVA PELADA</h1>
           <p>Preenche os campos e manda o link pro grupo.</p>
           <form id="event-form">
-            <label>Nome da pelada <input name="title" required placeholder="Pelada da Rua"></label>
-            <label>Nome do organizador <input name="organizerName" required placeholder="Ex: Carlos Eduardo"></label>
+            <label>Nome do Evento <input name="title" required placeholder="Evento de Sabado"></label>
+            <label>Nome do organizador <input name="organizerName" required placeholder="Nome & Sobrenome"></label>
             <label>Telefone do organizador <input name="organizerPhone" autocomplete="tel" placeholder="(00) 00000-0000"></label>
             <div class="sport-choice" role="group" aria-label="Tipo de racha">
               <label>
@@ -92,8 +92,11 @@
             </div>
             <label>Jogadores <input name="capacity" type="number" min="1" value="12" required></label>
             <label>Local <input name="location" required placeholder="Ex: Society Arena Moema"></label>
-            <label>Valor por jogador (R$) <input name="price" type="number" min="0" step="0.01" value="0"></label>
-            <label>Sua chave Pix (pra receber) <input name="pixKey" required value="edcdesigner@hotmail.com" placeholder="seupix@email.com"></label>
+            <div class="form-split">
+              <label>Valor por jogador (R$) <input name="price" type="number" min="0" step="0.01" value="0"></label>
+              <label>Valor Total (R$) <input name="totalPrice" type="number" min="0" step="0.01" value="0"></label>
+            </div>
+            <label>Sua chave Pix (pra receber) <input name="pixKey" required></label>
             <label>Observacoes <textarea name="notes" rows="3" placeholder="Ex: Leva camisa clara e escura."></textarea></label>
             <label class="check-row">
               <input name="requireProof" type="checkbox" checked>
@@ -188,20 +191,26 @@
         </section>
       </div>
 
-      <div id="team-draw-modal" class="proof-modal hidden" role="dialog" aria-modal="true" aria-labelledby="team-draw-title">
-        <section class="proof-modal-card team-draw-card">
-          <button id="close-team-draw-button" class="modal-close" type="button" aria-label="Fechar">x</button>
+      <div id="draw-size-modal" class="proof-modal hidden" role="dialog" aria-modal="true" aria-labelledby="draw-size-title">
+        <section class="proof-modal-card team-size-card">
+          <button id="close-draw-size-button" class="modal-close" type="button" aria-label="Fechar">x</button>
           <span class="payment-eyebrow">Sortear times</span>
-          <h2 id="team-draw-title">Divisao dos confirmados</h2>
-          <form id="team-draw-form" class="team-draw-form">
-            <label>Jogadores por time <input name="teamSize" type="number" min="1" value="5" required></label>
-            <button type="submit">SORTEAR</button>
-          </form>
-          <div id="team-draw-result" class="team-draw-result"></div>
+          <h2 id="draw-size-title">Jogadores por time</h2>
+          <p id="draw-size-hint" class="muted">Sugestao inteligente baseada nos confirmados.</p>
+          <div class="team-size-stepper" aria-label="Quantidade de jogadores por time">
+            <button id="decrease-draw-size-button" type="button" aria-label="Diminuir">-</button>
+            <strong id="draw-size-value">5</strong>
+            <button id="increase-draw-size-button" type="button" aria-label="Aumentar">+</button>
+          </div>
+          <div class="modal-actions">
+            <button id="confirm-draw-size-button" type="button">CONFIRMAR</button>
+            <button id="cancel-draw-size-button" class="secondary-button" type="button">CANCELAR</button>
+          </div>
         </section>
       </div>
+
     </main>
 
-    <script src="/admin.js?v=20260523-v0"></script>
+  <script src="/admin.js?v=20260523-drawsizev0"></script>
   </body>
 </html>

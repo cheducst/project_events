@@ -1,6 +1,17 @@
 const eventsContainer = document.querySelector("#events");
 const lookupForm = document.querySelector("#lookup-form");
 const lookupMessage = document.querySelector("#lookup-message");
+const organizerLoginModal = document.querySelector("#organizer-login-modal");
+const organizerLoginForm = document.querySelector("#organizer-login-form");
+const organizerLoginMessage = document.querySelector("#organizer-login-message");
+const closeOrganizerLogin = document.querySelector("#close-organizer-login");
+const profileChoiceModal = document.querySelector("#profile-choice-modal");
+const closeProfileChoice = document.querySelector("#close-profile-choice");
+const choicePlayerButton = document.querySelector("#choice-player-button");
+const choiceAdminButton = document.querySelector("#choice-admin-button");
+
+let lookupPhone = "";
+let lookupOrganizerEvents = [];
 
 const positionCodes = {
   Goleiro: "GOL",
@@ -151,5 +162,82 @@ lookupForm.addEventListener("submit", (event) => {
     return;
   }
 
-  window.location.href = `/overview.html?phone=${encodeURIComponent(phone)}`;
+  lookupPhone = phone;
+  lookupMessage.textContent = "Consultando...";
+
+  fetch(`/api/organizer/access-check?phone=${encodeURIComponent(phone)}`)
+    .then((response) => response.json().then((data) => ({ ok: response.ok, data })))
+    .then(({ ok, data }) => {
+      if (!ok) {
+        lookupMessage.textContent = data.error || "Nao foi possivel consultar.";
+        return;
+      }
+
+      lookupOrganizerEvents = data.organizerEvents || [];
+      if (data.isPlayer && data.isOrganizer) {
+        lookupMessage.textContent = "";
+        profileChoiceModal.classList.remove("hidden");
+        return;
+      }
+
+      if (data.isOrganizer) {
+        openOrganizerLogin(phone, lookupOrganizerEvents);
+        return;
+      }
+
+      window.location.href = `/overview.html?phone=${encodeURIComponent(phone)}`;
+    })
+    .catch(() => {
+      lookupMessage.textContent = "Nao foi possivel consultar agora.";
+    });
+});
+
+function openOrganizerLogin(phone, events) {
+  organizerLoginForm.elements.phone.value = phone;
+  organizerLoginForm.elements.eventId.innerHTML = events.map((event) => `
+    <option value="${escapeHtml(event.eventId)}">${escapeHtml(event.title)}</option>
+  `).join("");
+  organizerLoginMessage.textContent = "";
+  organizerLoginModal.classList.remove("hidden");
+}
+
+function closeModal(modal) {
+  modal.classList.add("hidden");
+}
+
+closeOrganizerLogin.addEventListener("click", () => closeModal(organizerLoginModal));
+closeProfileChoice.addEventListener("click", () => closeModal(profileChoiceModal));
+
+organizerLoginModal.addEventListener("click", (event) => {
+  if (event.target === organizerLoginModal) closeModal(organizerLoginModal);
+});
+
+profileChoiceModal.addEventListener("click", (event) => {
+  if (event.target === profileChoiceModal) closeModal(profileChoiceModal);
+});
+
+choicePlayerButton.addEventListener("click", () => {
+  window.location.href = `/overview.html?phone=${encodeURIComponent(lookupPhone)}`;
+});
+
+choiceAdminButton.addEventListener("click", () => {
+  closeModal(profileChoiceModal);
+  openOrganizerLogin(lookupPhone, lookupOrganizerEvents);
+});
+
+organizerLoginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  organizerLoginMessage.textContent = "Entrando...";
+  const payload = Object.fromEntries(new FormData(organizerLoginForm).entries());
+  const response = await fetch("/api/organizer/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    organizerLoginMessage.textContent = data.error || "Telefone ou senha invalidos";
+    return;
+  }
+  window.location.href = data.organizerPanelUrl;
 });

@@ -24,10 +24,14 @@ const playerAddForm = document.querySelector("#player-add-form");
 const playerAddMessage = document.querySelector("#player-add-message");
 const closePlayerAddButton = document.querySelector("#close-player-add-button");
 const cancelPlayerAddButton = document.querySelector("#cancel-player-add-button");
-const teamDrawModal = document.querySelector("#team-draw-modal");
-const teamDrawForm = document.querySelector("#team-draw-form");
-const teamDrawResult = document.querySelector("#team-draw-result");
-const closeTeamDrawButton = document.querySelector("#close-team-draw-button");
+const drawSizeModal = document.querySelector("#draw-size-modal");
+const drawSizeValue = document.querySelector("#draw-size-value");
+const drawSizeHint = document.querySelector("#draw-size-hint");
+const closeDrawSizeButton = document.querySelector("#close-draw-size-button");
+const cancelDrawSizeButton = document.querySelector("#cancel-draw-size-button");
+const confirmDrawSizeButton = document.querySelector("#confirm-draw-size-button");
+const decreaseDrawSizeButton = document.querySelector("#decrease-draw-size-button");
+const increaseDrawSizeButton = document.querySelector("#increase-draw-size-button");
 
 const moneyAdmin = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -58,13 +62,32 @@ let adminEventsData = [];
 let editingPlayerId = "";
 let addingPlayerEventId = "";
 let drawingEventId = "";
-let currentTeamImageUrl = "";
+let drawingTriggerButton = null;
+let selectedTeamSize = 5;
+let activeAdminPriceField = "price";
 
 function headers() {
   return {
     "Content-Type": "application/json",
     "x-admin-password": adminPassword
   };
+}
+
+function moneyNumber(value) {
+  const parsed = Number(String(value || "0").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function syncEventFormMoney(source = activeAdminPriceField) {
+  if (!eventForm?.elements.totalPrice) return;
+  const capacity = Math.max(Number(eventForm.elements.capacity.value) || 1, 1);
+  if (source === "total") {
+    eventForm.elements.price.value = (moneyNumber(eventForm.elements.totalPrice.value) / capacity).toFixed(2);
+    activeAdminPriceField = "total";
+    return;
+  }
+  eventForm.elements.totalPrice.value = (moneyNumber(eventForm.elements.price.value) * capacity).toFixed(2);
+  activeAdminPriceField = "price";
 }
 
 function statusText(status) {
@@ -196,22 +219,78 @@ function adminMetric(label, value, tone = "") {
   `;
 }
 
-function teamPlayerNode(player, side, index, total) {
+const teamColorClasses = ["mint", "gold", "violet", "cyan", "lime", "amber"];
+
+const formationSlotsBySize = {
+  1: [{ x: 10, y: 50, line: "def" }],
+  2: [{ x: 10, y: 50, line: "def" }, { x: 44, y: 50, line: "att" }],
+  3: [{ x: 10, y: 50, line: "def" }, { x: 30, y: 50, line: "mid" }, { x: 44, y: 50, line: "att" }],
+  4: [{ x: 10, y: 50, line: "def" }, { x: 30, y: 32, line: "mid" }, { x: 30, y: 68, line: "mid" }, { x: 44, y: 50, line: "att" }],
+  5: [{ x: 10, y: 50, line: "def" }, { x: 22, y: 30, line: "def" }, { x: 30, y: 50, line: "mid" }, { x: 44, y: 32, line: "att" }, { x: 44, y: 68, line: "att" }],
+  6: [{ x: 10, y: 50, line: "def" }, { x: 22, y: 28, line: "def" }, { x: 22, y: 72, line: "def" }, { x: 34, y: 34, line: "mid" }, { x: 34, y: 66, line: "mid" }, { x: 44, y: 50, line: "att" }],
+  7: [{ x: 10, y: 50, line: "def" }, { x: 22, y: 28, line: "def" }, { x: 22, y: 72, line: "def" }, { x: 34, y: 24, line: "mid" }, { x: 34, y: 50, line: "mid" }, { x: 34, y: 76, line: "mid" }, { x: 44, y: 50, line: "att" }],
+  8: [{ x: 10, y: 50, line: "def" }, { x: 22, y: 24, line: "def" }, { x: 22, y: 50, line: "def" }, { x: 22, y: 76, line: "def" }, { x: 34, y: 34, line: "mid" }, { x: 34, y: 66, line: "mid" }, { x: 44, y: 36, line: "att" }, { x: 44, y: 64, line: "att" }],
+  9: [{ x: 10, y: 50, line: "def" }, { x: 22, y: 24, line: "def" }, { x: 22, y: 50, line: "def" }, { x: 22, y: 76, line: "def" }, { x: 34, y: 24, line: "mid" }, { x: 34, y: 50, line: "mid" }, { x: 34, y: 76, line: "mid" }, { x: 44, y: 36, line: "att" }, { x: 44, y: 64, line: "att" }],
+  10: [{ x: 10, y: 50, line: "def" }, { x: 22, y: 24, line: "def" }, { x: 22, y: 50, line: "def" }, { x: 22, y: 76, line: "def" }, { x: 34, y: 24, line: "mid" }, { x: 34, y: 50, line: "mid" }, { x: 34, y: 76, line: "mid" }, { x: 44, y: 24, line: "att" }, { x: 44, y: 50, line: "att" }, { x: 44, y: 76, line: "att" }]
+};
+
+function formationSlots(teamSize, side) {
+  const size = Math.max(1, Math.min(Number(teamSize) || 1, 10));
+  const base = formationSlotsBySize[size] || formationSlotsBySize[10];
+  return base.map((slot) => ({ ...slot, x: side === "right" ? 100 - slot.x : slot.x }));
+}
+
+function tacticalRole(player) {
+  const code = String(positionCodes[player?.position] || player?.position || "").toUpperCase();
+  if (code.includes("GOL")) return "gol";
+  if (code.includes("ZAG") || code.includes("DEF")) return "def";
+  if (code.includes("LAT")) return "lat";
+  if (code.includes("VOL")) return "vol";
+  if (code.includes("MEI")) return "mei";
+  if (code.includes("COR") || code.includes("PON") || code.includes("ATA")) return "att";
+  return "mid";
+}
+
+function preferredLines(player) {
+  const role = tacticalRole(player);
+  if (role === "gol" || role === "def") return ["def", "mid", "att"];
+  if (role === "lat" || role === "vol" || role === "mei") return ["mid", "def", "att"];
+  if (role === "att") return ["att", "mid"];
+  return ["mid", "def", "att"];
+}
+
+function rolePriority(player) {
+  return { gol: 1, def: 2, lat: 3, vol: 4, mei: 5, att: 6, mid: 7 }[tacticalRole(player)] || 8;
+}
+
+function pickSlot(slots, used, player) {
+  const lines = preferredLines(player);
+  for (const line of lines) {
+    const slot = slots.find((candidate, index) => !used.has(index) && candidate.line === line);
+    if (slot) return slots.indexOf(slot);
+  }
+  return slots.findIndex((_, index) => !used.has(index));
+}
+
+function assignFormationSlots(players, side) {
+  const slots = formationSlots(players.length, side);
+  const used = new Set();
+  return players
+    .map((player, index) => ({ player, index }))
+    .sort((a, b) => rolePriority(a.player) - rolePriority(b.player) || a.index - b.index)
+    .map(({ player }) => {
+      const slotIndex = pickSlot(slots, used, player);
+      used.add(slotIndex);
+      return { player, slot: slots[slotIndex] || slots[slots.length - 1] };
+    });
+}
+
+function teamPlayerNode(player, slot, colorClass) {
   if (!player) return "";
   const code = positionCodes[player.position] || player.position.slice(0, 3).toUpperCase();
-  const lanes = side === "left"
-    ? [
-        [10, 48], [22, 24], [22, 72], [36, 42], [50, 22], [50, 68]
-      ]
-    : [
-        [90, 48], [78, 24], [78, 72], [64, 42], [50, 32], [50, 78]
-      ];
-  const fallbackX = side === "left" ? 14 + (index % 3) * 13 : 86 - (index % 3) * 13;
-  const fallbackY = 24 + Math.floor(index / 3) * 22;
-  const point = lanes[index] || [fallbackX, fallbackY];
 
   return `
-    <span class="team-field-player" style="left:${point[0]}%; top:${point[1]}%;" data-player-name="${escapeHtml(player.name)}">
+    <span class="team-field-player team-${colorClass}" style="left:${slot.x}%; top:${slot.y}%;" data-player-name="${escapeHtml(player.name)}">
       <span class="team-dot">${escapeHtml(initials(player.name))}</span>
       <small>${escapeHtml(code)}</small>
       <span class="team-tooltip">${escapeHtml(player.name)}</span>
@@ -221,8 +300,9 @@ function teamPlayerNode(player, side, index, total) {
 
 function renderTeamList(team, playersById, index) {
   const players = team.players.map((id) => playersById.get(id)).filter(Boolean);
+  const colorClass = teamColorClasses[index % teamColorClasses.length];
   return `
-    <div class="team-roster">
+    <div class="team-roster team-${colorClass}">
       <h4>${escapeHtml(team.name || `Time ${index + 1}`)}</h4>
       ${players.length ? `
         <ul>
@@ -240,15 +320,67 @@ function renderTeamList(team, playersById, index) {
   `;
 }
 
+function matchupPairs(teams) {
+  const pairs = [];
+  for (let index = 0; index < teams.length; index += 2) {
+    pairs.push([index, index + 1].filter((teamIndex) => teams[teamIndex]));
+  }
+  return pairs;
+}
+
+function matchupLabel(pair) {
+  if (pair.length === 1) return `Time ${pair[0] + 1}`;
+  return `Time ${pair[0] + 1} x Time ${pair[1] + 1}`;
+}
+
+function matchupNotice(index, pair) {
+  if (pair.length !== 1 || index === 0) return "";
+  return `<span class="matchup-solo-notice">Vencedor do Confronto 1</span>`;
+}
+
+function renderMatchupControls(matchupId, pairs) {
+  if (pairs.length <= 1) return "";
+  return `
+    <div class="matchup-controls" data-matchup-controls="${matchupId}">
+      <button type="button" data-matchup-prev="${matchupId}" aria-label="Confronto anterior">‹</button>
+      <div>
+        <strong data-matchup-label="${matchupId}">${escapeHtml(matchupLabel(pairs[0]))}</strong>
+        <span data-matchup-count="${matchupId}">Confronto 1 de ${pairs.length}</span>
+      </div>
+      <button type="button" data-matchup-next="${matchupId}" aria-label="Proximo confronto">›</button>
+    </div>
+  `;
+}
+
+function renderMatchupSlide(pair, pairIndex, matchupId, teams, playersById, isVolei) {
+  const leftIndex = pair[0];
+  const rightIndex = pair[1];
+  const leftTeam = (teams[leftIndex]?.players || []).map((id) => playersById.get(id)).filter(Boolean);
+  const rightTeam = rightIndex === undefined ? [] : (teams[rightIndex]?.players || []).map((id) => playersById.get(id)).filter(Boolean);
+  return `
+    <div class="matchup-slide ${pairIndex === 0 ? "active" : ""}" data-matchup-slide="${matchupId}" data-matchup-index="${pairIndex}" data-matchup-title="${escapeHtml(matchupLabel(pair))}">
+      <div class="soccer-field-card ${isVolei ? "volei-field" : ""}">
+        <div class="field-lines" aria-hidden="true"></div>
+        ${assignFormationSlots(leftTeam, "left").map(({ player, slot }) => teamPlayerNode(player, slot, teamColorClasses[leftIndex % teamColorClasses.length])).join("")}
+        ${assignFormationSlots(rightTeam, "right").map(({ player, slot }) => teamPlayerNode(player, slot, teamColorClasses[(rightIndex || 1) % teamColorClasses.length])).join("")}
+        ${matchupNotice(pairIndex, pair)}
+      </div>
+      <div class="team-rosters-grid">
+        ${pair.map((teamIndex) => renderTeamList(teams[teamIndex], playersById, teamIndex)).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function renderDrawnTeams(event) {
   const teams = Array.isArray(event.teams) ? event.teams : [];
   if (!teams.length) return "";
 
   const confirmedPlayers = event.players.filter((player) => player.status === "confirmado");
   const playersById = new Map(confirmedPlayers.map((player) => [player.id, player]));
-  const firstTeam = (teams[0]?.players || []).map((id) => playersById.get(id)).filter(Boolean);
-  const secondTeam = (teams[1]?.players || []).map((id) => playersById.get(id)).filter(Boolean);
-  const extraTeams = teams.slice(2);
+  const isVolei = event.sport === "volei";
+  const pairs = matchupPairs(teams);
+  const matchupId = `admin-${event.id}`;
 
   return `
     <section class="drawn-teams-section">
@@ -256,22 +388,36 @@ function renderDrawnTeams(event) {
         <h3>Times Sorteados</h3>
         <span>${teams.length} ${teams.length === 1 ? "time" : "times"}</span>
       </div>
-      <div class="soccer-field-card">
-        <div class="field-lines" aria-hidden="true"></div>
-        ${firstTeam.map((player, index) => teamPlayerNode(player, "left", index, firstTeam.length)).join("")}
-        ${secondTeam.map((player, index) => teamPlayerNode(player, "right", index, secondTeam.length)).join("")}
+      ${renderMatchupControls(matchupId, pairs)}
+      <div class="matchup-slider" data-matchup="${matchupId}">
+        ${pairs.map((pair, index) => renderMatchupSlide(pair, index, matchupId, teams, playersById, isVolei)).join("")}
       </div>
-      <div class="team-rosters-grid">
-        ${teams.slice(0, 2).map((team, index) => renderTeamList(team, playersById, index)).join("")}
-      </div>
-      ${extraTeams.length ? `
-        <div class="team-rosters-grid extra-teams">
-          ${extraTeams.map((team, index) => renderTeamList(team, playersById, index + 2)).join("")}
-        </div>
-      ` : ""}
     </section>
   `;
 }
+
+function setMatchupSlide(matchupId, nextIndex) {
+  const slides = [...document.querySelectorAll(`[data-matchup-slide="${CSS.escape(matchupId)}"]`)];
+  if (!slides.length) return;
+  const total = slides.length;
+  const activeIndex = ((nextIndex % total) + total) % total;
+  slides.forEach((slide, index) => slide.classList.toggle("active", index === activeIndex));
+  const activeSlide = slides[activeIndex];
+  const label = document.querySelector(`[data-matchup-label="${CSS.escape(matchupId)}"]`);
+  const count = document.querySelector(`[data-matchup-count="${CSS.escape(matchupId)}"]`);
+  if (label) label.textContent = activeSlide.dataset.matchupTitle || "";
+  if (count) count.textContent = `Confronto ${activeIndex + 1} de ${total}`;
+}
+
+document.addEventListener("click", (event) => {
+  const next = event.target.closest("[data-matchup-next]");
+  const prev = event.target.closest("[data-matchup-prev]");
+  const matchupId = next?.dataset.matchupNext || prev?.dataset.matchupPrev;
+  if (!matchupId) return;
+  const active = document.querySelector(`[data-matchup-slide="${CSS.escape(matchupId)}"].active`);
+  const currentIndex = Number(active?.dataset.matchupIndex || 0);
+  setMatchupSlide(matchupId, currentIndex + (next ? 1 : -1));
+});
 
 function playerRow(player) {
   const paymentClass = player.status === "confirmado" ? "confirmado" : "pendente";
@@ -402,23 +548,6 @@ function openPlayerAddModal(eventCard) {
   playerAddModal.classList.remove("hidden");
 }
 
-function closeTeamDrawModal() {
-  drawingEventId = "";
-  teamDrawForm.reset();
-  teamDrawResult.innerHTML = "";
-  if (currentTeamImageUrl) URL.revokeObjectURL(currentTeamImageUrl);
-  currentTeamImageUrl = "";
-  teamDrawModal.classList.add("hidden");
-}
-
-function openTeamDrawModal(eventCard) {
-  if (!eventCard) return;
-  drawingEventId = eventCard.id;
-  teamDrawForm.elements.teamSize.value = eventCard.sport === "volei" ? 6 : 5;
-  teamDrawResult.innerHTML = `<p class="muted">Somente jogadores confirmados entram no sorteio.</p>`;
-  teamDrawModal.classList.remove("hidden");
-}
-
 function shufflePlayers(players) {
   const shuffled = [...players];
   for (let index = shuffled.length - 1; index > 0; index -= 1) {
@@ -437,31 +566,64 @@ function teamAverageLevel(team) {
 }
 
 function samePositionCount(team, player) {
-  return team.filter((teamPlayer) => teamPlayer.position === player.position).length;
+  return team.filter((teamPlayer) => positionGroup(teamPlayer) === positionGroup(player)).length;
+}
+
+function positionGroup(player) {
+  const normalized = String(player?.position || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+
+  if (normalized.includes("GOL")) return "GOL";
+  if (normalized.includes("ZAG") || normalized.includes("DEF")) return "DEF";
+  if (normalized.includes("LAT")) return "LAT";
+  if (normalized.includes("VOL") || normalized.includes("MEI")) return "MEI";
+  if (normalized.includes("ATA") || normalized.includes("PON") || normalized.includes("COR")) return "ATA";
+  return "OUT";
+}
+
+function teamScore(team, player) {
+  return teamTotalLevel(team) + samePositionCount(team, player) * 3 + team.length;
+}
+
+function equivalentTeamScore(team, player) {
+  return {
+    score: teamScore(team, player),
+    total: teamTotalLevel(team),
+    average: teamAverageLevel(team),
+    samePosition: samePositionCount(team, player),
+    size: team.length
+  };
+}
+
+function compareTeamScore(a, b, player) {
+  const scoreA = equivalentTeamScore(a, player);
+  const scoreB = equivalentTeamScore(b, player);
+  return scoreA.score - scoreB.score
+    || scoreA.total - scoreB.total
+    || scoreA.average - scoreB.average
+    || scoreA.samePosition - scoreB.samePosition
+    || scoreA.size - scoreB.size;
 }
 
 function drawTeams(players, teamSize) {
   const confirmedPlayers = players.filter((player) => player.status === "confirmado");
-  if (confirmedPlayers.length <= teamSize) return [shufflePlayers(confirmedPlayers)];
+  if (confirmedPlayers.length <= teamSize) {
+    return [[...confirmedPlayers].sort((a, b) => playerLevel(b) - playerLevel(a) || positionGroup(a).localeCompare(positionGroup(b)) || a.name.localeCompare(b.name))];
+  }
 
   const teamCount = Math.ceil(confirmedPlayers.length / teamSize);
   const teams = Array.from({ length: teamCount }, () => []);
 
-  const sortedPlayers = shufflePlayers(confirmedPlayers).sort((a, b) => playerLevel(b) - playerLevel(a));
+  const sortedPlayers = shufflePlayers(confirmedPlayers).sort((a, b) =>
+    playerLevel(b) - playerLevel(a)
+    || positionGroup(a).localeCompare(positionGroup(b))
+    || a.name.localeCompare(b.name)
+  );
   sortedPlayers.forEach((player) => {
     const candidates = teams.filter((team) => team.length < teamSize);
-    const rankedTeams = shufflePlayers(candidates).sort((a, b) => {
-      const totalDiff = teamTotalLevel(a) - teamTotalLevel(b);
-      if (totalDiff !== 0) return totalDiff;
-
-      const averageDiff = teamAverageLevel(a) - teamAverageLevel(b);
-      if (averageDiff !== 0) return averageDiff;
-
-      const positionDiff = samePositionCount(a, player) - samePositionCount(b, player);
-      if (positionDiff !== 0) return positionDiff;
-
-      return a.length - b.length;
-    });
+    const rankedTeams = shufflePlayers(candidates).sort((a, b) => compareTeamScore(a, b, player));
 
     rankedTeams[0].push(player);
   });
@@ -469,70 +631,52 @@ function drawTeams(players, teamSize) {
   return teams;
 }
 
-function escapeXml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
+function confirmedPlayersForEvent(eventCard) {
+  return (eventCard?.players || []).filter((player) => player.status === "confirmado");
 }
 
-function teamSvg(eventCard, teams) {
-  const width = 960;
-  const headerHeight = 142;
-  const teamHeader = 58;
-  const rowHeight = 38;
-  const gap = 18;
-  const teamBlocks = teams.map((team) => teamHeader + Math.max(team.length, 1) * rowHeight + 24);
-  const height = headerHeight + teamBlocks.reduce((sum, block) => sum + block + gap, 0) + 24;
-  let y = headerHeight;
-
-  const blocks = teams.map((team, index) => {
-    const blockHeight = teamBlocks[index];
-    const rows = team.length
-      ? team.map((player, playerIndex) => {
-          const rowY = y + teamHeader + playerIndex * rowHeight;
-          return `
-            <text x="72" y="${rowY}" fill="#ffffff" font-size="24" font-family="Arial, sans-serif" font-weight="700">${escapeXml(player.name)}</text>
-            <text x="792" y="${rowY}" fill="#ffd447" font-size="20" font-family="Arial, sans-serif" font-weight="700" text-anchor="end">${escapeXml(positionCodes[player.position] || player.position)}</text>
-          `;
-        }).join("")
-      : `<text x="72" y="${y + teamHeader}" fill="#d8e2dc" font-size="22" font-family="Arial, sans-serif">Sem jogadores</text>`;
-    const block = `
-      <rect x="42" y="${y - 34}" width="876" height="${blockHeight}" rx="22" fill="#15221d" stroke="#315346"/>
-      <text x="72" y="${y + 8}" fill="#00d9ff" font-size="26" font-family="Arial, sans-serif" font-weight="900">TIME ${index + 1}</text>
-      <text x="886" y="${y + 8}" fill="#9cffb6" font-size="19" font-family="Arial, sans-serif" font-weight="700" text-anchor="end">${team.length} jogadores</text>
-      ${rows}
-    `;
-    y += blockHeight + gap;
-    return block;
-  }).join("");
-
-  return `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-      <rect width="960" height="${height}" fill="#07130f"/>
-      <circle cx="790" cy="44" r="220" fill="#1f5fff" opacity="0.18"/>
-      <circle cx="100" cy="${height - 80}" r="230" fill="#1fb45a" opacity="0.16"/>
-      <text x="42" y="58" fill="#ffd447" font-size="24" font-family="Arial, sans-serif" font-weight="900">SORTEIO DE TIMES</text>
-      <text x="42" y="104" fill="#ffffff" font-size="42" font-family="Arial, sans-serif" font-weight="900">${escapeXml(eventCard.title)}</text>
-      <text x="42" y="132" fill="#d8e2dc" font-size="20" font-family="Arial, sans-serif">${escapeXml(eventCard.location || "")}</text>
-      ${blocks}
-    </svg>
-  `;
+function smartTeamSize(eventCard) {
+  const confirmedCount = confirmedPlayersForEvent(eventCard).length;
+  const baseSize = eventCard?.sport === "volei" ? 6 : 5;
+  if (confirmedCount <= 1) return 1;
+  if (confirmedCount <= baseSize * 2) return Math.max(1, Math.ceil(confirmedCount / 2));
+  return baseSize;
 }
 
-function renderTeamDrawResult(eventCard, teams) {
-  if (currentTeamImageUrl) URL.revokeObjectURL(currentTeamImageUrl);
-  const svg = teamSvg(eventCard, teams);
-  const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-  currentTeamImageUrl = URL.createObjectURL(blob);
-  teamDrawResult.innerHTML = `
-    <div class="team-export-card">
-      <img src="${currentTeamImageUrl}" alt="Times sorteados de ${escapeHtml(eventCard.title)}">
-      <a class="icon-link-button" href="${currentTeamImageUrl}" download="times-${escapeHtml(eventCard.id)}.svg">Baixar imagem</a>
-    </div>
-  `;
+function updateDrawSizeView() {
+  const eventCard = findEvent(drawingEventId);
+  const confirmedCount = confirmedPlayersForEvent(eventCard).length;
+  if (drawSizeValue) drawSizeValue.textContent = selectedTeamSize;
+  if (drawSizeHint) {
+    const teamCount = selectedTeamSize ? Math.ceil(confirmedCount / selectedTeamSize) : 0;
+    drawSizeHint.textContent = `${confirmedCount} confirmados · sugestao inteligente: ${teamCount} ${teamCount === 1 ? "time" : "times"}`;
+  }
+}
+
+function clampDrawSize(value) {
+  const eventCard = findEvent(drawingEventId);
+  const confirmedCount = confirmedPlayersForEvent(eventCard).length || 1;
+  return Math.max(1, Math.min(Number(value) || 1, confirmedCount));
+}
+
+function openDrawSizeModal(eventCard, button) {
+  if (!eventCard) return;
+  const confirmedCount = confirmedPlayersForEvent(eventCard).length;
+  if (!confirmedCount) {
+    window.alert("Nenhum jogador confirmado para sortear.");
+    return;
+  }
+  drawingEventId = eventCard.id;
+  drawingTriggerButton = button;
+  selectedTeamSize = clampDrawSize(smartTeamSize(eventCard));
+  updateDrawSizeView();
+  drawSizeModal.classList.remove("hidden");
+}
+
+function closeDrawSizeModal() {
+  drawingEventId = "";
+  drawingTriggerButton = null;
+  drawSizeModal.classList.add("hidden");
 }
 
 async function loadAdmin() {
@@ -573,6 +717,10 @@ closeCreateButton.addEventListener("click", () => {
   eventCreate.classList.add("hidden");
 });
 
+eventForm.elements.price?.addEventListener("input", () => syncEventFormMoney("price"));
+eventForm.elements.totalPrice?.addEventListener("input", () => syncEventFormMoney("total"));
+eventForm.elements.capacity?.addEventListener("input", () => syncEventFormMoney(activeAdminPriceField));
+
 eventCreate.addEventListener("click", (event) => {
   if (event.target === eventCreate) eventCreate.classList.add("hidden");
 });
@@ -599,10 +747,24 @@ playerAddModal.addEventListener("click", (event) => {
   if (event.target === playerAddModal) closePlayerAddModal();
 });
 
-closeTeamDrawButton.addEventListener("click", closeTeamDrawModal);
+closeDrawSizeButton.addEventListener("click", closeDrawSizeModal);
+cancelDrawSizeButton.addEventListener("click", closeDrawSizeModal);
+decreaseDrawSizeButton.addEventListener("click", () => {
+  selectedTeamSize = clampDrawSize(selectedTeamSize - 1);
+  updateDrawSizeView();
+});
+increaseDrawSizeButton.addEventListener("click", () => {
+  selectedTeamSize = clampDrawSize(selectedTeamSize + 1);
+  updateDrawSizeView();
+});
+drawSizeModal.addEventListener("click", (event) => {
+  if (event.target === drawSizeModal) closeDrawSizeModal();
+});
 
-teamDrawModal.addEventListener("click", (event) => {
-  if (event.target === teamDrawModal) closeTeamDrawModal();
+confirmDrawSizeButton.addEventListener("click", async () => {
+  const eventCard = findEvent(drawingEventId);
+  const sorted = await sortAndSaveTeams(eventCard, drawingTriggerButton, selectedTeamSize);
+  if (sorted) closeDrawSizeModal();
 });
 
 adminEvents.addEventListener("click", async (event) => {
@@ -626,7 +788,7 @@ adminEvents.addEventListener("click", async (event) => {
     }
 
     if (action === "draw-teams") {
-      openTeamDrawModal(findEvent(eventId));
+      openDrawSizeModal(findEvent(eventId), eventButton);
       return;
     }
 
@@ -731,18 +893,20 @@ playerAddForm.addEventListener("submit", async (event) => {
   await loadAdmin();
 });
 
-teamDrawForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const eventCard = findEvent(drawingEventId);
-  if (!eventCard) return;
+async function sortAndSaveTeams(eventCard, button, teamSize) {
+  if (!eventCard) return false;
 
-  const teamSize = Math.max(Number(new FormData(teamDrawForm).get("teamSize")) || 1, 1);
   const confirmedPlayers = eventCard.players.filter((player) => player.status === "confirmado");
   if (!confirmedPlayers.length) {
-    teamDrawResult.innerHTML = `<p class="form-message">Nenhum jogador confirmado para sortear.</p>`;
-    return;
+    window.alert("Nenhum jogador confirmado para sortear.");
+    return false;
   }
 
+  const previousLabel = button?.textContent;
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Sorteando...";
+  }
   const teams = drawTeams(confirmedPlayers, teamSize);
   const storedTeams = teams.map((team, index) => ({
     name: `Time ${index + 1}`,
@@ -756,13 +920,17 @@ teamDrawForm.addEventListener("submit", async (event) => {
   });
   const data = await response.json();
   if (!response.ok) {
-    teamDrawResult.innerHTML = `<p class="form-message">${escapeHtml(data.error || "Nao foi possivel salvar o sorteio.")}</p>`;
-    return;
+    window.alert(data.error || "Nao foi possivel salvar o sorteio.");
+    if (button) {
+      button.disabled = false;
+      button.textContent = previousLabel;
+    }
+    return false;
   }
 
-  renderTeamDrawResult(eventCard, teams);
   await loadAdmin();
-});
+  return true;
+}
 
 eventForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -770,6 +938,7 @@ eventForm.addEventListener("submit", async (event) => {
   const formData = new FormData(eventForm);
   const payload = Object.fromEntries(formData.entries());
   payload.requireProof = formData.has("requireProof");
+  delete payload.totalPrice;
 
   const response = await fetch("/api/admin/events", {
     method: "POST",
@@ -784,6 +953,7 @@ eventForm.addEventListener("submit", async (event) => {
   }
 
   eventForm.reset();
+  syncEventFormMoney("price");
   const shareLink = eventShareLink(data.event.id);
   eventMessage.innerHTML = `
     Racha criado.

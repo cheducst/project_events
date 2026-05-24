@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Painel do organizador | Racha Ai</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css?v=20260523-drawsizev0">
+  </head>
+  <body>
+    <main class="admin-shell organizer-panel-shell">
+      <a class="icon-back-link" href="/" aria-label="Voltar para a home">â€¹</a>
+      <button id="organizer-logout-button" class="create-square logout-square" type="button" aria-label="Sair">↪</button>
+
+      <section id="organizer-denied" class="signup-card admin-login hidden">
+        <h1>ACESSO DO ORGANIZADOR</h1>
+        <p>Entre pela Home usando seu telefone e senha.</p>
+        <a class="signup-link" href="/">VOLTAR PARA HOME</a>
+      </section>
+
+      <section id="organizer-content" class="hidden admin-panel">
+        <section class="overview-user-card admin-organizer-card" aria-label="Dados do organizador">
+          <span>Organizador</span>
+          <strong id="organizer-name">Organizador</strong>
+          <p id="organizer-phone">Telefone</p>
+          <p>1 racha criado</p>
+        </section>
+
+        <div class="admin-head">
+          <div>
+            <span class="payment-eyebrow">Painel seguro</span>
+            <h1 id="organizer-event-title">RACHA</h1>
+          </div>
+          <button id="organizer-refresh-button" type="button">ATUALIZAR</button>
+        </div>
+
+        <article id="organizer-event-card" class="admin-event"></article>
+      </section>
+
+      <div id="organizer-proof-modal" class="proof-modal hidden" role="dialog" aria-modal="true" aria-labelledby="organizer-proof-title">
+        <section class="proof-modal-card">
+          <button id="organizer-close-proof" class="modal-close" type="button" aria-label="Fechar">x</button>
+          <span class="payment-eyebrow">Comprovante</span>
+          <h2 id="organizer-proof-title">Arquivo enviado</h2>
+          <div id="organizer-proof-body" class="proof-modal-body"></div>
+        </section>
+      </div>
+
+      <div id="organizer-player-modal" class="proof-modal hidden" role="dialog" aria-modal="true" aria-labelledby="organizer-player-title">
+        <section class="proof-modal-card">
+          <button id="organizer-close-player" class="modal-close" type="button" aria-label="Fechar">x</button>
+          <span class="payment-eyebrow">Jogador</span>
+          <h2 id="organizer-player-title">Editar inscricao</h2>
+          <form id="organizer-player-form">
+            <label>Jogador <input name="name" required></label>
+            <label>Telefone <input name="phone" autocomplete="tel" required></label>
+            <label>Posicao <select name="position" required></select></label>
+            <label>Nivel <input name="level" type="number" min="1" max="5" required></label>
+            <label class="check-row">
+              <input name="confirmed" type="checkbox">
+              <span>Confirmado na lista final</span>
+            </label>
+            <div class="modal-actions">
+              <button type="submit">OK</button>
+              <button id="organizer-cancel-player" class="secondary-button" type="button">CANCELAR</button>
+            </div>
+            <p id="organizer-player-message" class="form-message" role="status"></p>
+          </form>
+        </section>
+      </div>
+
+      <div id="organizer-add-player-modal" class="proof-modal hidden" role="dialog" aria-modal="true" aria-labelledby="organizer-add-player-title">
+        <section class="proof-modal-card">
+          <button id="organizer-close-add-player" class="modal-close" type="button" aria-label="Fechar">x</button>
+          <span class="payment-eyebrow">Adicionar jogador</span>
+          <h2 id="organizer-add-player-title">Novo inscrito</h2>
+          <form id="organizer-add-player-form">
+            <label>Jogador <input name="name" required placeholder="Nome & Sobrenome"></label>
+            <label>Telefone <input name="phone" autocomplete="tel" required placeholder="(00) 00000-0000"></label>
+            <label>Posicao <select name="position" required></select></label>
+            <label>Nivel <input name="level" type="number" min="1" max="5" value="3" required></label>
+            <label class="check-row">
+              <input name="confirmed" type="checkbox">
+              <span>Adicionar ja confirmado</span>
+            </label>
+            <div class="modal-actions">
+              <button type="submit">OK</button>
+              <button id="organizer-cancel-add-player" class="secondary-button" type="button">CANCELAR</button>
+            </div>
+            <p id="organizer-add-player-message" class="form-message" role="status"></p>
+          </form>
+        </section>
+      </div>
+
+      <div id="organizer-draw-size-modal" class="proof-modal hidden" role="dialog" aria-modal="true" aria-labelledby="organizer-draw-size-title">
+        <section class="proof-modal-card team-size-card">
+          <button id="organizer-close-draw-size" class="modal-close" type="button" aria-label="Fechar">x</button>
+          <span class="payment-eyebrow">Sortear times</span>
+          <h2 id="organizer-draw-size-title">Jogadores por time</h2>
+          <p id="organizer-draw-size-hint" class="muted">Sugestao inteligente baseada nos confirmados.</p>
+          <div class="team-size-stepper" aria-label="Quantidade de jogadores por time">
+            <button id="organizer-decrease-draw-size" type="button" aria-label="Diminuir">-</button>
+            <strong id="organizer-draw-size-value">5</strong>
+            <button id="organizer-increase-draw-size" type="button" aria-label="Aumentar">+</button>
+          </div>
+          <div class="modal-actions">
+            <button id="organizer-confirm-draw-size" type="button">CONFIRMAR</button>
+            <button id="organizer-cancel-draw-size" class="secondary-button" type="button">CANCELAR</button>
+          </div>
+        </section>
+      </div>
+
+      <div id="organizer-event-modal" class="proof-modal hidden" role="dialog" aria-modal="true" aria-labelledby="organizer-event-edit-title">
+        <section class="proof-modal-card">
+          <button id="organizer-close-event" class="modal-close" type="button" aria-label="Fechar">x</button>
+          <span class="payment-eyebrow">Editar racha</span>
+          <h2 id="organizer-event-edit-title">Dados do evento</h2>
+          <form id="organizer-event-form">
+            <label>Nome do Evento <input name="title" required></label>
+            <div class="form-split">
+              <label>Data <input name="date" type="date" required></label>
+              <label>Hora <input name="time" type="time" required></label>
+            </div>
+            <label>Jogadores <input name="capacity" type="number" min="1" required></label>
+            <label>Local <input name="location" required></label>
+            <div class="form-split">
+              <label>Valor por jogador (R$) <input name="price" type="number" min="0" step="0.01"></label>
+              <label>Valor Total (R$) <input name="totalPrice" type="number" min="0" step="0.01"></label>
+            </div>
+            <label>Chave Pix <input name="pixKey" required></label>
+            <label>Observacoes <textarea name="notes" rows="3"></textarea></label>
+            <div class="modal-actions">
+              <button type="submit">OK</button>
+              <button id="organizer-cancel-event" class="secondary-button" type="button">CANCELAR</button>
+            </div>
+            <p id="organizer-event-message" class="form-message" role="status"></p>
+          </form>
+        </section>
+      </div>
+    </main>
+
+  <script src="/painel-organizador.js?v=20260523-drawsizev0"></script>
+  </body>
+</html>
